@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/tttest25/goreceptionloader/db"
 	"github.com/tttest25/goreceptionloader/logger"
@@ -27,6 +28,12 @@ type Smd []struct {
 	ExceptionMessage interface{} `json:"exceptionMessage"`
 }
 
+type stat struct {
+	all      int64
+	inserted int64
+	skiped   int64
+}
+
 var (
 	// Logger variable for logging
 	l *log.Logger
@@ -35,7 +42,7 @@ var (
 
 )
 
-func get() {
+func get() *Smd {
 	l.Println("1. Performing Http Get...")
 	resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.1/message")
 	if err != nil {
@@ -54,7 +61,7 @@ func get() {
 	json.Unmarshal(bodyBytes, &todoStruct)
 	l.Printf("API Response as struct %#v\n", len(todoStruct))
 	l.Printf("Record %#v\n", todoStruct[0])
-	// return todoStruct[0]
+	return &todoStruct
 
 }
 
@@ -63,10 +70,39 @@ func main() {
 	// defer db.Close()
 	l = logger.ReturnLogger("main")
 	l.Printf("--- Start ")
-	get() // get json data
-	
+	smd := get() // get json data
 
-	l.Printf("Elapsed send to nagios %dms \n", logger.TimeElapsed()/1000)
-	l.Printf("=== Successfully stop\n \n \n")
+	a := new(db.Smddb)
+	stat := new(stat)
+
+	for i, s := range *smd {
+		// fmt.Println(i, s)
+		// l.Printf("Get result `354` ='%s'", db.GetResult(354))
+		id, _ := strconv.ParseInt(s.RequestID, 10, 64)
+		a = &db.Smddb{
+			RequestID:        id,
+			DepartmentID:     s.DepartmentID,
+			Format:           s.Format,
+			IsDirect:         0,
+			Number:           s.Number,
+			CreateDate:       s.CreateDate,
+			Name:             s.Name,
+			Address:          s.Address,
+			Email:            s.Email,
+			ReceiveDate:      s.ReceiveDate,
+			UploadDate:       s.UploadDate,
+			DispatchDate:     s.DispatchDate,
+			ExceptionMessage: fmt.Sprintf("%d : %v", i, s.ExceptionMessage),
+		}
+		stat.all++
+		if db.Insert(a) > 0 {
+			stat.inserted++
+		} else {
+			stat.skiped++
+		}
+	}
+	l.Printf("Get result from smd  ='%#v'", stat)
+
+	l.Printf("=== Successfully stop elapsed %dms\n \n \n", logger.TimeElapsed()/1000)
 
 }

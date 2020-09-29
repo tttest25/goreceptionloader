@@ -26,8 +26,10 @@ func Config() {
 // MustConnectDB check connection
 func MustConnectDB() {
 	if err := ConnectDatabase(); err != nil {
-		panic(err)
+		l.Fatal(err)
+		// panic(err)
 	}
+	l.Printf("DB connected %#v ", db.Driver())
 }
 
 // ConnectDatabase connect instance
@@ -63,7 +65,7 @@ func ConnectDatabase() (err error) {
 func InitDB() {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Println(e)
+			l.Println(e)
 		}
 	}()
 
@@ -76,13 +78,15 @@ func InitDB() {
 func CreateTable() {
 	stmt, err := db.Prepare(createTable)
 	if err != nil {
+		l.Print(err)
 		panic(err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec()
 	if err != nil {
-		panic(err)
+		l.Fatal(err)
+		// panic(err)
 	}
 }
 
@@ -90,13 +94,15 @@ func CreateTable() {
 func Drop() {
 	stmt, err := db.Prepare(dropTable)
 	if err != nil {
-		panic(err)
+		l.Fatal(err)
+		// panic(err)
 	}
 	defer stmt.Close()
 
 	_, err = stmt.Exec()
 	if err != nil {
-		panic(err)
+		l.Fatal(err)
+		// panic(err)
 	}
 
 	CreateTable()

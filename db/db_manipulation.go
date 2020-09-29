@@ -22,19 +22,23 @@ type Smddb struct {
 }
 
 // Insert - insert data
-func Insert(smd *Smddb) {
-
-	if smd.RequestID > 0 || GetResult(smd.RequestID) != "" {
-		panic("insert conflict")
+func Insert(smd *Smddb) int64 {
+	// smd.RequestID > 0 ||
+	if GetResult(smd.RequestID) != "" {
+		l.Printf("insert conflict - skip %d", smd.RequestID)
+		return 0
 	}
 
 	stmt, err := db.Prepare(peopleInsert)
 	if err != nil {
-		panic(err)
+
+		l.Fatal(err)
+		// panic(err)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(
+	res, err := stmt.Exec(
+		&smd.RequestID,
 		&smd.DepartmentID,
 		&smd.Format,
 		&smd.IsDirect,
@@ -49,8 +53,16 @@ func Insert(smd *Smddb) {
 		&smd.ExceptionMessage,
 	)
 	if err != nil {
-		panic(err)
+		l.Printf("Error data: %#v", smd)
+		l.Fatal(err)
+		// panic(err)
 	}
+	count, err2 := res.RowsAffected()
+
+	if err2 != nil {
+		l.Printf(err2.Error())
+	}
+	return count
 
 }
 
@@ -58,7 +70,8 @@ func Insert(smd *Smddb) {
 func List() []*Smddb {
 	rows, err := db.Query(smdQuery)
 	if err != nil {
-		panic(err)
+		l.Fatal(err)
+		// panic(err)
 	}
 	defer rows.Close()
 
@@ -66,6 +79,7 @@ func List() []*Smddb {
 	for rows.Next() {
 		m := new(Smddb)
 		if err := rows.Scan(
+			&m.RequestID,
 			&m.DepartmentID,
 			&m.Format,
 			&m.IsDirect,
@@ -80,7 +94,8 @@ func List() []*Smddb {
 			&m.ExceptionMessage,
 		); err != nil {
 			log.Println(err)
-			panic(err)
+			l.Fatal(err)
+			// panic(err)
 		}
 
 		list = append(list, m)
@@ -93,7 +108,8 @@ func List() []*Smddb {
 func GetResult(id int64) string {
 	rows, err := db.Query(smdQuery+" WHERE RequestID = ?", id)
 	if err != nil {
-		panic(err)
+		l.Fatal(err)
+		// panic(err)
 	}
 	defer rows.Close()
 
@@ -101,6 +117,7 @@ func GetResult(id int64) string {
 	for rows.Next() {
 		m := new(Smddb)
 		if err := rows.Scan(
+			&m.RequestID,
 			&m.DepartmentID,
 			&m.Format,
 			&m.IsDirect,
@@ -114,7 +131,8 @@ func GetResult(id int64) string {
 			&m.DispatchDate,
 			&m.ExceptionMessage,
 		); err != nil {
-			panic(err)
+			l.Fatal(err)
+			// panic(err)
 		}
 
 		list = append(list, m)
@@ -132,28 +150,41 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 var smdQuery = `
 SELECT
-    *
+	RequestID,
+	DepartmentID,
+	Format,
+	IsDirect,
+	Number,
+	CreateDate,
+	Name,
+	Address,
+	Email,
+	ReceiveDate,
+	UploadDate,
+	DispatchDate,
+	ExceptionMessage
 FROM
     smd_data
 `
 
+//     --title 			 VARCHAR(255) NOT NULL,
+
 var createTable = `
 CREATE TABLE IF NOT EXISTS smd_data (
     sid INT AUTO_INCREMENT PRIMARY KEY,
-    title 			 VARCHAR(255) NOT NULL,
 	RequestID        int,
 	DepartmentID     VARCHAR(36),
 	Format           VARCHAR(20),
 	IsDirect         int,
 	Number           VARCHAR(40),
-	CreateDate       VARCHAR(20),
-	Name             VARCHAR(100),
+	CreateDate       VARCHAR(30),
+	Name             VARCHAR(200),
 	Address          VARCHAR(200),
 	Email            VARCHAR(100),
-	ReceiveDate      VARCHAR(20),
-	UploadDate       VARCHAR(20),
-	DispatchDate     VARCHAR(20),
-	ExceptionMessage VARCHAR(20),
+	ReceiveDate      VARCHAR(30),
+	UploadDate       VARCHAR(30),
+	DispatchDate     VARCHAR(30),
+	ExceptionMessage VARCHAR(300),
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )  ENGINE=INNODB;

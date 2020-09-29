@@ -1,7 +1,4 @@
 log.txt
-go.sum
-coursera_cache
-old
-log.txt
-gonagiosmetric
+goreceptionloader
 .env
+go.sum
