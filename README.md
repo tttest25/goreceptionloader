@@ -1,3 +1,35 @@
-# goreceptionloader
-
+# #goreceptionloader
+![Much Win!](https://golang.org/lib/godoc/images/home-gopher.png)
 load data to mysql
+
+## Example how to prepare and start 
+
+### Start on host
+```command
+go build
+DSN="user:password@tcp(10.59.0.75:3306)/modx_reception" ./goreceptionloader
+```
+
+### Docker
+
+```command
+docker build -t melnikov-ea/goreceptionloader:v0.1.0 .
+docker run --env-file .env melnikov-ea/goreceptionloader
+docker run -it --entrypoint /bin/ash  --env-file .env melnikov-ea/goreceptionloader 
+```
+
+
+## Comment
+
+
+<b><code>goreceptionloader</code></b> remember
+
+<table>
+    <tbody>
+        <tr>
+            <th align="left">tttest25</th>
+            <td><a href="https://github.com/tttest25">GitHub/tttest25</a></td>
+            <td><a href="">no Twitter/@</a></td>
+        </tr>
+    </tbody>
+</table>
