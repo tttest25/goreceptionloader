@@ -12,6 +12,7 @@ import (
 	"github.com/tttest25/goreceptionloader/logger"
 )
 
+// Smd struct  [] for JSON smd
 type Smd []struct {
 	RequestID        string      `json:"requestId"`
 	DepartmentID     string      `json:"departmentId"`
