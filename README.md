@@ -2,6 +2,12 @@
 ![Much Win!](https://golang.org/lib/godoc/images/home-gopher.png)
 load data to mysql
 
+## Describe
+ Project for start in docker stack for accumulate data from SMD service to reception DB 
+auto rotate logging (log.txt), null dependencies + multistage docker image <15 mb
+
+
+
 ## Example how to prepare and start 
 
 ### Start on host
