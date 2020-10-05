@@ -43,6 +43,14 @@ func ConnectDatabase() (err error) {
 	return
 }
 
+// CloseDatabase close instance
+func CloseDatabase() {
+
+	if err := db.Close(); err != nil {
+		log.Fatal(err)
+	}
+}
+
 /*CreateCon Create mysql connection*/
 /*func CreateCon() *sql.DB {
 	db1, err := sql.Open("mysql", "test32:PbGFTmw3uzpNWRnT@tcp(172.19.193.159)/modx_reception")

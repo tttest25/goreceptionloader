@@ -14,6 +14,7 @@ auto rotate logging (log.txt), null dependencies + multistage docker image <15 m
 ```command
 go build
 DSN="user:password@tcp(10.59.0.75:3306)/modx_reception" ./goreceptionloader
+source ./.env   && export DSN && ./goreceptionloader
 ```
 
 ### Docker

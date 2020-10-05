@@ -68,7 +68,7 @@ func get() *Smd {
 
 func main() {
 
-	// defer db.Close()
+	defer db.CloseDatabase()
 	l = logger.ReturnLogger("main")
 	l.Printf("--- Start ")
 	smd := get() // get json data
@@ -76,7 +76,7 @@ func main() {
 	a := new(db.Smddb)
 	stat := new(stat)
 
-	for i, s := range *smd {
+	for _, s := range *smd {
 		// fmt.Println(i, s)
 		// l.Printf("Get result `354` ='%s'", db.GetResult(354))
 		id, _ := strconv.ParseInt(s.RequestID, 10, 64)
@@ -93,7 +93,7 @@ func main() {
 			ReceiveDate:      s.ReceiveDate,
 			UploadDate:       s.UploadDate,
 			DispatchDate:     s.DispatchDate,
-			ExceptionMessage: fmt.Sprintf("%d : %v", i, s.ExceptionMessage),
+			ExceptionMessage: fmt.Sprintf("%v", s.ExceptionMessage),
 		}
 		stat.all++
 		if db.Insert(a) > 0 {
