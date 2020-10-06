@@ -38,7 +38,7 @@ func ConnectDatabase() (err error) {
 	if db, err = sql.Open("mysql", dsn); err != nil {
 		return
 	}
-
+	db.SetMaxIdleConns(10)
 	err = db.Ping()
 	return
 }

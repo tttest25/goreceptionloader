@@ -1,30 +1,37 @@
 package db
 
 import (
+	"database/sql"
 	"log"
 )
 
 // Smddb Struct for use with DB
 type Smddb struct {
 	RequestID        int64
-	DepartmentID     string
-	Format           string
-	IsDirect         int64
 	Number           string
+	DtModified       string
+	DepartmentID     string
+	DepartmentName   string
+	Format           string
+	FormatName       string
+	IsDirect         int64
 	CreateDate       string
 	Name             string
 	Address          string
 	Email            string
 	ReceiveDate      string
-	UploadDate       string
 	DispatchDate     string
+	UploadDate       string
 	ExceptionMessage string
+	Questions        string
 }
 
 // Insert - insert data
 func Insert(smd *Smddb) int64 {
 	// smd.RequestID > 0 ||
-	if GetResult(smd.RequestID) != "" {
+	// if GetResult(smd.RequestID) != "" {
+	// if already exist skip
+	if GetResultF(smd.RequestID) {
 		l.Printf("insert conflict - skip %d", smd.RequestID)
 		return 0
 	}
@@ -39,18 +46,22 @@ func Insert(smd *Smddb) int64 {
 
 	res, err := stmt.Exec(
 		&smd.RequestID,
-		&smd.DepartmentID,
-		&smd.Format,
-		&smd.IsDirect,
 		&smd.Number,
+		&smd.DtModified,
+		&smd.DepartmentID,
+		&smd.DepartmentName,
+		&smd.Format,
+		&smd.FormatName,
+		&smd.IsDirect,
 		&smd.CreateDate,
 		&smd.Name,
 		&smd.Address,
 		&smd.Email,
 		&smd.ReceiveDate,
-		&smd.UploadDate,
 		&smd.DispatchDate,
+		&smd.UploadDate,
 		&smd.ExceptionMessage,
+		&smd.Questions,
 	)
 	if err != nil {
 		l.Printf("Error data: %#v", smd)
@@ -80,18 +91,22 @@ func List() []*Smddb {
 		m := new(Smddb)
 		if err := rows.Scan(
 			&m.RequestID,
-			&m.DepartmentID,
-			&m.Format,
-			&m.IsDirect,
 			&m.Number,
+			&m.DtModified,
+			&m.DepartmentID,
+			&m.DepartmentName,
+			&m.Format,
+			&m.FormatName,
+			&m.IsDirect,
 			&m.CreateDate,
 			&m.Name,
 			&m.Address,
 			&m.Email,
 			&m.ReceiveDate,
-			&m.UploadDate,
 			&m.DispatchDate,
+			&m.UploadDate,
 			&m.ExceptionMessage,
+			&m.Questions,
 		); err != nil {
 			log.Println(err)
 			l.Fatal(err)
@@ -102,6 +117,22 @@ func List() []*Smddb {
 	}
 
 	return list
+}
+
+// GetResultF - check existance of row with requestid
+func GetResultF(id int64) bool {
+	var sid int64
+	err := db.QueryRow("select sid FROM smd_data WHERE RequestID =  ?", id).Scan(&sid)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			// a real error happened! you should change your function return
+			// to "(bool, error)" and return "false, err" here
+			log.Fatal(err)
+		}
+
+		return false
+	}
+	return true
 }
 
 // GetResult - get string
@@ -118,18 +149,22 @@ func GetResult(id int64) string {
 		m := new(Smddb)
 		if err := rows.Scan(
 			&m.RequestID,
-			&m.DepartmentID,
-			&m.Format,
-			&m.IsDirect,
 			&m.Number,
+			&m.DtModified,
+			&m.DepartmentID,
+			&m.DepartmentName,
+			&m.Format,
+			&m.FormatName,
+			&m.IsDirect,
 			&m.CreateDate,
 			&m.Name,
 			&m.Address,
 			&m.Email,
 			&m.ReceiveDate,
-			&m.UploadDate,
 			&m.DispatchDate,
+			&m.UploadDate,
 			&m.ExceptionMessage,
+			&m.Questions,
 		); err != nil {
 			l.Fatal(err)
 			// panic(err)
@@ -145,24 +180,29 @@ func GetResult(id int64) string {
 }
 
 var peopleInsert = `
-INSERT INTO smd_data(RequestID, DepartmentID, Format, IsDirect, Number, CreateDate, Name, Address, Email, ReceiveDate, UploadDate, DispatchDate, ExceptionMessage) 
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+INSERT INTO smd_data(
+	RequestID, Number, DtModified, DepartmentID, DepartmentName, Format, FormatName, IsDirect, CreateDate, Name, Address, Email, ReceiveDate, DispatchDate, UploadDate, ExceptionMessage, Questions) 
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 var smdQuery = `
 SELECT
 	RequestID,
-	DepartmentID,
-	Format,
-	IsDirect,
 	Number,
+	DtModified,
+	DepartmentID,
+	DepartmentName,
+	Format,
+	FormatName,
+	IsDirect,
 	CreateDate,
 	Name,
 	Address,
 	Email,
 	ReceiveDate,
-	UploadDate,
 	DispatchDate,
-	ExceptionMessage
+	UploadDate,
+	ExceptionMessage,
+	Questions
 FROM
     smd_data
 `
@@ -172,21 +212,25 @@ FROM
 var createTable = `
 CREATE TABLE IF NOT EXISTS smd_data (
     sid INT AUTO_INCREMENT PRIMARY KEY,
-	RequestID        int,
-	DepartmentID     VARCHAR(36),
-	Format           VARCHAR(20),
-	IsDirect         int,
-	Number           VARCHAR(40),
-	CreateDate       VARCHAR(30),
-	Name             VARCHAR(200),
-	Address          VARCHAR(200),
-	Email            VARCHAR(100),
-	ReceiveDate      VARCHAR(30),
-	UploadDate       VARCHAR(30),
+    RequestID        int,
+    Number           VARCHAR(40),
+    DtModified       VARCHAR(30),
+    DepartmentID     VARCHAR(36),
+    DepartmentName   VARCHAR(250),
+    Format           VARCHAR(20),
+    FormatName       VARCHAR(20),
+    IsDirect         int,
+    CreateDate       VARCHAR(30),
+    Name             VARCHAR(200),
+    Address          VARCHAR(200),
+    Email            VARCHAR(100),
+    ReceiveDate      VARCHAR(30),
 	DispatchDate     VARCHAR(30),
-	ExceptionMessage VARCHAR(300),
-
+	UploadDate		 VARCHAR(30),
+    ExceptionMessage VARCHAR(300),
+    Questions        VARCHAR(1024) default '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    CHECK (Questions IS NULL OR JSON_VALID(Questions))
 )  ENGINE=INNODB;
 `
 var dropTable = `
