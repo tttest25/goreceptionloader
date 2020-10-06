@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -82,11 +83,18 @@ func main() {
 
 	defer db.CloseDatabase()
 	l = logger.ReturnLogger("main")
+
+	// config configure parralelism
+	var nqueries, nconns int
+	flag.IntVar(&nqueries, "n", 10, "number of queries")
+	flag.IntVar(&nconns, "c", 10, "number of connections")
+	flag.Parse()
+
+	// set maximim connection and max idle connection
+	db.SetNumCons(nconns)
+
 	l.Printf("--- Start ")
 	smd := get() // get json data
-
-	a := new(db.Smddb)
-	stat := new(stat)
 
 	start := make(chan bool)
 	var done sync.WaitGroup
@@ -95,27 +103,36 @@ func main() {
 	val := *smd
 	l1 := len(val) / 2
 
+	// val[1:l1] get half of data
 	for i := 0; i < 2; i++ {
-		go func() {
+		end := l1
+		if i > 0 {
+			i = l1
+			end = len(val)
+		}
+
+		go func(val Smd, i int) {
 			<-start
-			for i := 0; i < n; i++ {
-				rows, err := db.Query("SELECT 1 as `id`")
-				if err != nil {
-					log.Fatal(err)
-				}
-				rows.Close()
-			}
-			done.Done()
-		}()
+			procDbData(val, i)
+			defer done.Done()
+		}(val[i:end], i)
 	}
 
 	at1 := time.Now()
 	close(start)
 	done.Wait()
 
-	fmt.Printf("sqlasyn finished - %v...\r\n", time.Since(at1))
+	l.Printf(" Sqlasyn finished - %v...\r\n", time.Since(at1))
 
-	for _, s := range val[1:l1] {
+	l.Printf("=== Successfully stop elapsed %dms\n \n \n", logger.TimeElapsed()/1000)
+
+}
+
+func procDbData(val Smd, routineN int) {
+	a := new(db.Smddb)
+	stat := new(stat)
+
+	for _, s := range val {
 		// fmt.Println(i, s)
 		// l.Printf("Get result `354` ='%s'", db.GetResult(354))
 
@@ -156,8 +173,6 @@ func main() {
 			stat.skiped++
 		}
 	}
-	l.Printf("Get result from smd  ='%#v'", stat)
-
-	l.Printf("=== Successfully stop elapsed %dms\n \n \n", logger.TimeElapsed()/1000)
+	l.Printf(" -> Routine %d Get result from smd  ='%#v'", routineN, stat)
 
 }

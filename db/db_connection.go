@@ -23,6 +23,12 @@ func Config() {
 	dsn = os.Getenv("DSN")
 }
 
+// SetNumCons Set Numer connection
+func SetNumCons(nconns int) {
+	db.SetMaxIdleConns(nconns)
+	db.SetMaxOpenConns(nconns)
+}
+
 // MustConnectDB check connection
 func MustConnectDB() {
 	if err := ConnectDatabase(); err != nil {
