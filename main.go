@@ -86,7 +86,7 @@ func main() {
 
 	// config configure parralelism
 	var nqueries, nconns int
-	flag.IntVar(&nqueries, "n", 10, "number of queries")
+	flag.IntVar(&nqueries, "n", 10, "number of queries") // !! not nedded , use if need to limit queries in parallel
 	flag.IntVar(&nconns, "c", 10, "number of connections")
 	flag.Parse()
 
@@ -96,26 +96,42 @@ func main() {
 	l.Printf("--- Start ")
 	smd := get() // get json data
 
+	// prepeare parallel
 	start := make(chan bool)
 	var done sync.WaitGroup
-	done.Add(2)
+	done.Add(nconns)
 
-	val := *smd
-	l1 := len(val) / 2
+	// split data for parallel working
+	// // Split data for 2 peaces
+	// val := *smd
+	// l1 := len(*smd) / 2
+	var divided []Smd
+	chunkSize := (len(*smd) + nconns - 1) / nconns
 
-	// val[1:l1] get half of data
-	for i := 0; i < 2; i++ {
-		end := l1
-		if i > 0 {
-			i = l1
-			end = len(val)
+	for i := 0; i < len(*smd); i += chunkSize {
+		end := i + chunkSize
+
+		if end > len(*smd) {
+			end = len(*smd)
 		}
+
+		divided = append(divided, (*smd)[i:end])
+	}
+
+	if len(divided) < nconns {
+		divided = append(divided, Smd{})
+	}
+
+	l.Printf(" Prepeared %d slices for paralell process.", len(divided))
+
+	// Pass slices for process parallel in ncons gorutine
+	for i := 0; i < nconns; i++ {
 
 		go func(val Smd, i int) {
 			<-start
 			procDbData(val, i)
 			defer done.Done()
-		}(val[i:end], i)
+		}(divided[i], i)
 	}
 
 	at1 := time.Now()

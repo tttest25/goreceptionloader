@@ -1,6 +1,7 @@
 # #goreceptionloader
 ![Much Win!](https://golang.org/lib/godoc/images/home-gopher.png)
-load data to mysql
+
+Scrapper for paralell load data to mysql/mariadb  (similar for ETL), prepare data for reports 
 
 ## Describe
  Project for start in docker stack for accumulate data from SMD service to reception DB 
