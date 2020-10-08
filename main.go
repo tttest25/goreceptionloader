@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -15,8 +14,13 @@ import (
 	"github.com/tttest25/goreceptionloader/logger"
 )
 
+//  layout for parse date  "2020-08-07 12:30:01.995389"
+const (
+	layoutSmd = "2006-01-02 15:04:05.999999"
+)
+
 // Smd struct  [] for JSON smd
-type Smd []struct {
+type Smd struct {
 	RequestID        string      `json:"requestId"`
 	Number           string      `json:"number"`
 	DtModified       string      `json:"dt_modified"`
@@ -44,40 +48,15 @@ type Smd []struct {
 type stat struct {
 	all      int64
 	inserted int64
+	updated  int64
 	skiped   int64
 }
 
 var (
 	// Logger variable for logging
 	l *log.Logger
-
-// log nage
-
+	// log nage
 )
-
-func get() *Smd {
-	l.Println("1. Performing Http Get...")
-	//resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.1/message")
-	resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.2/requests/f1ae1eef-16ea-44cb-b77f-6b978ee4075d")
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	defer resp.Body.Close()
-	bodyBytes, _ := ioutil.ReadAll(resp.Body)
-
-	// Convert response body to string
-	// bodyString := string(bodyBytes)
-	// fmt.Println("API Response as String:\n" + bodyString)
-
-	// Convert response body to Todo struct
-	var todoStruct Smd
-	json.Unmarshal(bodyBytes, &todoStruct)
-	l.Printf("API Response as struct %#v\n", len(todoStruct))
-	l.Printf("Record %#v\n", todoStruct[0])
-	return &todoStruct
-
-}
 
 func main() {
 
@@ -98,6 +77,7 @@ func main() {
 
 	// prepeare parallel
 	start := make(chan bool)
+	chStat := make(chan *stat, nconns)
 	var done sync.WaitGroup
 	done.Add(nconns)
 
@@ -105,21 +85,19 @@ func main() {
 	// // Split data for 2 peaces
 	// val := *smd
 	// l1 := len(*smd) / 2
-	var divided []Smd
+	var divided [][]Smd
 	chunkSize := (len(*smd) + nconns - 1) / nconns
 
 	for i := 0; i < len(*smd); i += chunkSize {
 		end := i + chunkSize
-
 		if end > len(*smd) {
 			end = len(*smd)
 		}
-
 		divided = append(divided, (*smd)[i:end])
 	}
 
 	if len(divided) < nconns {
-		divided = append(divided, Smd{})
+		divided = append(divided, []Smd{})
 	}
 
 	l.Printf(" Prepeared %d slices for paralell process.", len(divided))
@@ -127,9 +105,9 @@ func main() {
 	// Pass slices for process parallel in ncons gorutine
 	for i := 0; i < nconns; i++ {
 
-		go func(val Smd, i int) {
+		go func(val []Smd, i int) {
 			<-start
-			procDbData(val, i)
+			chStat <- procDbData(val, i)
 			defer done.Done()
 		}(divided[i], i)
 	}
@@ -137,58 +115,122 @@ func main() {
 	at1 := time.Now()
 	close(start)
 	done.Wait()
-
 	l.Printf(" Sqlasyn finished - %v...\r\n", time.Since(at1))
 
+	close(chStat)
+	sStat := stat{}
+
+	for elem := range chStat {
+		l.Printf(" Stat result %#v", elem)
+		sStat.all += elem.all
+		sStat.skiped += elem.skiped
+		sStat.inserted += elem.inserted
+		sStat.updated += elem.updated
+	}
+
+	l.Printf(" -> Total stat Get result from smd  ='%#v'", sStat)
 	l.Printf("=== Successfully stop elapsed %dms\n \n \n", logger.TimeElapsed()/1000)
 
 }
 
-func procDbData(val Smd, routineN int) {
-	a := new(db.Smddb)
+// procDbData process data for database
+func procDbData(val []Smd, routineN int) *stat {
 	stat := new(stat)
 
 	for _, s := range val {
-		// fmt.Println(i, s)
-		// l.Printf("Get result `354` ='%s'", db.GetResult(354))
-
-		// parse data for db
-		id, _ := strconv.ParseInt(s.RequestID, 10, 64)
-		q, err := json.Marshal(s.Questions)
-		if err != nil {
-			l.Fatalf("Fatal error questions %s", err)
-		}
-		intIsdirect := int64(0)
-		if s.IsDirect {
-			intIsdirect = 1
-		}
-		a = &db.Smddb{
-			RequestID:        id,
-			Number:           s.Number,
-			DtModified:       s.DtModified,
-			DepartmentID:     s.DepartmentID,
-			DepartmentName:   s.DepartmentName,
-			Format:           s.Format,
-			FormatName:       s.FormatName,
-			IsDirect:         intIsdirect,
-			CreateDate:       s.CreateDate,
-			Name:             s.Name,
-			Address:          s.Address,
-			Email:            s.Email,
-			ReceiveDate:      s.ReceiveDate,
-			DispatchDate:     s.DispatchDate,
-			UploadDate:       s.UploadDate,
-			ExceptionMessage: fmt.Sprintf("%v", s.ExceptionMessage),
-			Questions:        string(q),
-		}
-
+		d := s.smdToDbData()
+		//  status // -1 error , 0 not changed , 1 new , 2 update
 		stat.all++
-		if db.Insert(a) > 0 {
-			stat.inserted++
-		} else {
+		if status, sid := db.CheckModified(d.RequestID, d.DtModified); status == 0 {
 			stat.skiped++
+		} else if status == 1 {
+			stat.inserted++
+			row := db.Insert(d)
+			l.Printf(" --> inserted effectes %d", row)
+		} else if status == 2 {
+			stat.updated++
+			row := db.Update(sid, d)
+			l.Printf(" --> updated sid %d effectes %d", sid, row)
+		} else {
+			l.Printf(" ! WARNING- status %#v sid %#v", status, sid)
 		}
 	}
-	l.Printf(" -> Routine %d Get result from smd  ='%#v'", routineN, stat)
+	l.Printf("  --> Routine %d Get result from smd  ='%#v'", routineN, stat)
+	return stat
 
+}
+
+// get - function for get data from web table
+func get() *[]Smd {
+	l.Println("1. Performing Http Get...")
+	//resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.1/message")
+	resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.2/requests/f1ae1eef-16ea-44cb-b77f-6b978ee4075d")
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	defer resp.Body.Close()
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
+	// Convert response body to string
+	// bodyString := string(bodyBytes)
+	// fmt.Println("API Response as String:\n" + bodyString)
+
+	// Convert response body to Todo struct
+	var todoStruct []Smd
+	json.Unmarshal(bodyBytes, &todoStruct)
+	l.Printf("API Response as struct %#v\n", len(todoStruct))
+	// l.Printf("Record %#v\n", todoStruct[0])
+	return &todoStruct
+
+}
+
+func (s *Smd) smdToDbData() *db.Smddb {
+	var r = new(db.Smddb)
+	id, _ := strconv.ParseInt(s.RequestID, 10, 64)
+
+	// join questions
+	q, err := json.Marshal(s.Questions)
+	if err != nil {
+		l.Printf(" !!! error json create s.Questions %s", err)
+	}
+
+	e, err := json.Marshal(s.ExceptionMessage)
+	if err != nil {
+		l.Printf(" !!! error json create s.ExceptionMessage %s", err)
+	}
+
+	intIsdirect := int64(0)
+	if s.IsDirect {
+		intIsdirect = 1
+	}
+
+	r.RequestID = id
+	r.Number = s.Number
+	r.DtModified = strtoTime(s.DtModified)
+	r.DepartmentID = s.DepartmentID
+	r.DepartmentName = s.DepartmentName
+	r.Format = s.Format
+	r.FormatName = s.FormatName
+	r.IsDirect = intIsdirect
+	r.CreateDate = strtoTime(s.CreateDate)
+	r.Name = s.Name
+	r.Address = s.Address
+	r.Email = s.Email
+	r.ReceiveDate = strtoTime(s.ReceiveDate)
+	r.DispatchDate = strtoTime(s.DispatchDate)
+	r.UploadDate = strtoTime(s.UploadDate)
+	r.ExceptionMessage = string(e)
+	r.Questions = string(q)
+	return r
+}
+
+func strtoTime(s string) time.Time {
+
+	dt, err := time.Parse(layoutSmd, s)
+	if err != nil {
+		// l.Printf("strtoTime error %s", err)
+		dt = time.Time{}
+	}
+	return dt
 }

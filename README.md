@@ -1,5 +1,5 @@
 # #goreceptionloader
-![Much Win!](https://golang.org/lib/godoc/images/home-gopher.png)
+![Much Win!](https://www.pauladamsmith.com/images/gopher.png)
 
 Scrapper for paralell load data to mysql/mariadb  (similar for ETL), prepare data for reports 
 
@@ -28,6 +28,36 @@ docker run -it --entrypoint /bin/ash  --env-file .env melnikov-ea/goreceptionloa
 
 
 ## Comment
+```json
+[
+{
+    "requestId": "392",
+    "number": "А26-05-84857211-СО1",
+    "dt_modified": "2020-08-07 12:30:01.995389",
+    "departmentId": "f1ae1eef-16ea-44cb-b77f-6b978ee4075d",
+    "departmentName": "Администрация города Перми",
+    "format": "Other",
+    "formatName": "Другое",
+    "isDirect": false,
+    "createDate": "2020-08-03",
+    "name": "Зайцева К.А.",
+    "address": "Российская Федерация, Пермский край, г. Пермь",
+    "email": "krisival.zaitcevu@gmail.com",
+    "receiveDate": "2020-08-07 12:30:01.995389",
+    "dispatchDate": null,
+    "uploadDate": null,
+    "exceptionMessage": null,
+    "questions": [
+        {
+            "code": "0005.0005.0055.1122",
+            "status": "NotRegistered",
+            "questionStatusName": "Не зарегистрировано",
+            "incomingDate": "2020-08-04"
+        }
+    ]
+}
+]
+```
 
 
 <b><code>goreceptionloader</code></b> remember
