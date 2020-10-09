@@ -26,6 +26,6 @@ COPY --from=builder /build/goreceptionloader .
 # executable
 ENTRYPOINT [ "./goreceptionloader" ]
 # arguments that can be overridden
-# 3Mb, 300 milliseconds between allocation
-CMD [ "3", "300" ]
+# -v - output to stdout / -c 10 10 connection to mysql
+CMD [ "-v" , " -c 10"]
 

@@ -20,9 +20,20 @@ var (
 	file   *os.File
 	err    error
 
+	nstdout bool = true
 	// log nage
 
 )
+
+// SetStdin - set stdin to not use file
+func SetStdin(s bool) {
+	nstdout = s
+}
+
+// GetStdin return stdin flag
+func GetStdin() bool {
+	return nstdout
+}
 
 // truncateFile copy file with skipping from head
 func truncateFile(src string, lim int64) {
@@ -114,14 +125,32 @@ func init() {
 	if err != nil {
 		Logger.Fatal(err)
 	}
-	Logger = log.New(file, "logger: ", log.Ldate|log.Ltime|log.Lshortfile)
-	Logger.SetOutput(file)
+	Logger = log.New(os.Stdout, "logger: ", log.Ldate|log.Ltime|log.Lshortfile)
+
+	//  if not set flag don`t use file
+	if !nstdout {
+		Logger.SetOutput(file)
+	}
 
 	Logger.Printf("Init")
 }
 
+// LogCloseFile - close file
+func LogCloseFile() {
+	// Logger.Printf("Close file")
+	file.Close()
+}
+
+// ReturnLogger create logger for mules
 func ReturnLogger(nameLogger string) *log.Logger {
-	logger := log.New(file, nameLogger+": ", log.Ldate|log.Ltime|log.Lshortfile)
-	logger.SetOutput(file)
+	var logger *log.Logger
+	// if set stdin don`t use file
+	if nstdout {
+		logger = log.New(os.Stdout, nameLogger+": ", log.Ldate|log.Ltime|log.Lshortfile)
+
+	} else {
+		logger = log.New(file, nameLogger+": ", log.Ldate|log.Ltime|log.Lshortfile)
+		Logger.SetOutput(file)
+	}
 	return logger
 }

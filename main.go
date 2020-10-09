@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,7 +17,8 @@ import (
 
 //  layout for parse date  "2020-08-07 12:30:01.995389"
 const (
-	layoutSmd = "2006-01-02 15:04:05.999999"
+	layoutDateTimeSmd = "2006-01-02 15:04:05.999999"
+	layoutDtSmd       = "2006-01-02 15:04:05.999999"
 )
 
 // Smd struct  [] for JSON smd
@@ -55,20 +57,28 @@ type stat struct {
 var (
 	// Logger variable for logging
 	l *log.Logger
-	// log nage
+	// command line arguments = flag
+	nqueries, nconns int
 )
+
+func init() {
+	// config configure parralelism
+	flag.IntVar(&nqueries, "n", 10, "number of queries") // !! not nedded , use if need to limit queries in parallel
+	flag.IntVar(&nconns, "c", 10, "number of connections")
+	ptrV := flag.Bool("v", false, "print stdout")
+	flag.Parse()
+	logger.SetStdin(*ptrV)
+
+}
 
 func main() {
 
 	defer db.CloseDatabase()
+	defer logger.LogCloseFile()
+
 	l = logger.ReturnLogger("main")
 
-	// config configure parralelism
-	var nqueries, nconns int
-	flag.IntVar(&nqueries, "n", 10, "number of queries") // !! not nedded , use if need to limit queries in parallel
-	flag.IntVar(&nconns, "c", 10, "number of connections")
-	flag.Parse()
-
+	fmt.Printf("Stdout flag %#v \n", logger.GetStdin())
 	// set maximim connection and max idle connection
 	db.SetNumCons(nconns)
 
@@ -164,7 +174,10 @@ func procDbData(val []Smd, routineN int) *stat {
 func get() *[]Smd {
 	l.Println("1. Performing Http Get...")
 	//resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.1/message")
-	resp, err := http.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.2/requests/f1ae1eef-16ea-44cb-b77f-6b978ee4075d")
+	client := http.Client{
+		Timeout: 1 * time.Second,
+	}
+	resp, err := client.Get("https://smd.permkrai.ru/IPCP/HandlingReportPlugin/Api/analytics/ver.0.2/requests/f1ae1eef-16ea-44cb-b77f-6b978ee4075d")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -207,27 +220,27 @@ func (s *Smd) smdToDbData() *db.Smddb {
 
 	r.RequestID = id
 	r.Number = s.Number
-	r.DtModified = strtoTime(s.DtModified)
+	r.DtModified = strtoTime(layoutDateTimeSmd, s.DtModified)
 	r.DepartmentID = s.DepartmentID
 	r.DepartmentName = s.DepartmentName
 	r.Format = s.Format
 	r.FormatName = s.FormatName
 	r.IsDirect = intIsdirect
-	r.CreateDate = strtoTime(s.CreateDate)
+	r.CreateDate = strtoTime(layoutDtSmd, s.CreateDate)
 	r.Name = s.Name
 	r.Address = s.Address
 	r.Email = s.Email
-	r.ReceiveDate = strtoTime(s.ReceiveDate)
-	r.DispatchDate = strtoTime(s.DispatchDate)
-	r.UploadDate = strtoTime(s.UploadDate)
+	r.ReceiveDate = strtoTime(layoutDateTimeSmd, s.ReceiveDate)
+	r.DispatchDate = strtoTime(layoutDateTimeSmd, s.DispatchDate)
+	r.UploadDate = strtoTime(layoutDateTimeSmd, s.UploadDate)
 	r.ExceptionMessage = string(e)
 	r.Questions = string(q)
 	return r
 }
 
-func strtoTime(s string) time.Time {
+func strtoTime(layout string, s string) time.Time {
 
-	dt, err := time.Parse(layoutSmd, s)
+	dt, err := time.Parse(layout, s)
 	if err != nil {
 		// l.Printf("strtoTime error %s", err)
 		dt = time.Time{}

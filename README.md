@@ -23,7 +23,7 @@ source ./.env   && export DSN && ./goreceptionloader
 ```command
 docker build -t melnikov-ea/goreceptionloader:v0.1.0 .
 docker run --env-file .env melnikov-ea/goreceptionloader
-docker run -it --entrypoint /bin/ash  --env-file .env melnikov-ea/goreceptionloader 
+docker run -it --entrypoint /bin/ash  --env-file .env melnikov-ea/goreceptionloader  --name goreceptionloader
 ```
 
 
